@@ -9,4 +9,5 @@ class LoginPage(BasePage):
     def user_authorization(self, email, password):
         self.input_text(LoginPageLocators.EMAIL_INPUT, email)
         self.input_text(LoginPageLocators.PASSWORD_INPUT, password)
-        self.click_element(LoginPageLocators.LOGIN_BUTTON_AUTH)
+        element = self.wait_for_element(LoginPageLocators.LOGIN_BUTTON_AUTH)
+        self.click_js(element)

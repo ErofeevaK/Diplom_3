@@ -1,14 +1,29 @@
 import pytest
 import allure
+import logging
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 from pages.main_page import MainPage
 from pages.login_page import LoginPage
 from helpers import UserAPI
 from urls import BASE_URL
 
+logger = logging.getLogger(__name__)
+@pytest.fixture(scope="session", autouse=True)
+def setup_logging():
+    #Настройка логирования для всех тестов
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler('test.log'),
+            logging.StreamHandler()
+        ]
+    )
 
 # Фикстура для драйвера
 @pytest.fixture(params=['chrome', 'firefox'])
@@ -22,6 +37,7 @@ def driver(request):
     else:
         options = FirefoxOptions()
         options.add_argument('--headless')
+        options.set_preference("browser.tabs.remote.autostart", False)
         driver = webdriver.Firefox(options=options)
 
     driver.maximize_window()
@@ -41,12 +57,12 @@ def registered_user():
 
     # ПРОВЕРКА что регистрация прошла успешно
     if response.status_code != 200 or not response_data.get('success'):
-        print(f"❌ Регистрация не удалась: {response.status_code} - {response_data}")
+        logger.error(f"Регистрация не удалась: {response.status_code} - {response_data}")
         pytest.fail(f"Регистрация через API не удалась: {response_data.get('message', 'Unknown error')}")
 
     access_token = response_data.get('accessToken')
     if not access_token:
-        print(f"❌ Access Token не получен: {response_data}")
+        logger.error(f"Access Token не получен: {response_data}")
         pytest.fail("Access Token не получен при регистрации")
 
     user_info = {
@@ -58,7 +74,7 @@ def registered_user():
         'response_data': response_data
     }
 
-    print(f"✅ Пользователь зарегистрирован: {user_data['email']}")
+    logger.info(f"Пользователь зарегистрирован: {user_data['email']}")
     yield user_info
 
     # Удаляем пользователя после теста
@@ -83,11 +99,10 @@ def login(driver, registered_user):
     main_page.wait_for_url(BASE_URL, timeout=15)
 
     # ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: убедимся что мы действительно авторизованы
-    import time
-    time.sleep(2)
-    current_url = driver.current_url
-    if "login" in current_url:
-        pytest.fail(f"Авторизация не прошла - остались на странице логина. URL: {current_url}")
+    main_page.wait_for_custom_condition(
+        lambda driver: "login" not in driver.current_url,
+        timeout=10
+    )
 
-    print(f"✅ UI-авторизация прошла успешно для: {registered_user['email']}")
+    logger.info(f"UI-авторизация прошла успешно для: {registered_user['email']}")
     return main_page

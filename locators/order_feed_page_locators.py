@@ -9,13 +9,18 @@ class OrderFeedPageLocators:
     MODAL_ORDER_NUMBER = (By.XPATH, "//h2[contains(@class, 'Modal_modal__title__2L34m')]")
     MODAL_CLOSE_ORDER = (By.CSS_SELECTOR, "button.Modal_modal__closeBtn__3JQgr")
     # В работе
-    ORDERS_AT_WORK = (By.CSS_SELECTOR, "ul.OrderFeed_orderListReady__1YFem")
+    ORDERS_AT_WORK = (By.CSS_SELECTOR, "ul.OrderFeed_orderList__cBvyi")
+    ORDERS_READY = (By.CSS_SELECTOR, "ul.OrderFeed_orderListReady__1YFem")
     STATUS_READY_TEXT = (By.XPATH, "//li[@class='text text_type_main-small' and contains(text(), 'Все текущие заказы готовы!')]")
+    ORDERS_IN_PROGRESS = (By.XPATH, "//ul[contains(@class, 'OrderFeed_orderList')]//p[contains(@class, 'text_type_digits-default')]")
+    ORDER_IN_PROGRESS_BY_NUMBER = (By.XPATH, "//ul[contains(@class, 'OrderFeed_orderListReady')]/li[text()='{}']")
     # Основной контейнер списка заказов Готовы:
     ORDER_FEED_ORDER_LIST = (By.CSS_SELECTOR, ".OrderFeed_orderList__cBvyi")
     # Основной контейнер списка заказов
     ORDER_FEED_LIST = (By.CSS_SELECTOR, ".OrderFeed_list__OLh59")
     # Выполнено за все время
-    All_ORDERS_LOCATOR = (By.XPATH, '//p[contains(text(), "Выполнено за все время:")]/following-sibling::p')
+    ALL_ORDERS_LOCATOR = (By.XPATH, '//p[contains(text(), "Выполнено за все время:")]/following-sibling::p')
     # Выполнено за сегодня
     TODAY_ORDERS_LOCATOR = (By.XPATH, '//p[contains(text(), "Выполнено за сегодня:")]/following-sibling::p')
+    ORDER_NUMBERS = (By.XPATH, "//p[contains(@class, 'text text_type_digits-default')]")
+    CLOSE_MODAL_BUTTON = (By.XPATH, "//button[contains(@class, 'Modal_modal__close')]")
