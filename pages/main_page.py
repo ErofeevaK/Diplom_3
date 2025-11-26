@@ -102,7 +102,7 @@ class MainPage(BasePage):
         self.wait_for_element(MainPageLocators.PERSONAL_ACCOUNT_BUTTON)
         element = self.wait_for_element(MainPageLocators.PERSONAL_ACCOUNT_BUTTON)
         self.click_js(element)
-        WebDriverWait(self.driver, 10).until(EC.url_contains("/account"))
+        self.wait_for_url("/account")
 
     @allure.step("Добавить ингредиенты в заказ")
     def add_ingredients_to_order(self):

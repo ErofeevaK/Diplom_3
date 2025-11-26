@@ -11,6 +11,8 @@ class BasePage:
     def __init__(self, driver):
         self.driver = driver
 
+    # ========== ОСНОВНЫЕ МЕТОДЫ ОЖИДАНИЯ ==========
+
     @allure.step("Подождать загрузки страницы и проверить URL")
     def wait_for_url(self, url, timeout=10):
         return WebDriverWait(self.driver, timeout).until(EC.url_contains(url))
@@ -32,6 +34,77 @@ class BasePage:
         element = WebDriverWait(self.driver, 10).until(EC.presence_of_element_located(locator))
         self.driver.execute_script("arguments[0].scrollIntoView(true);", element)
         return element
+
+    @allure.step("Проверить, что элемент не виден")
+    def element_is_not_visible(self, locator, timeout=10):
+        return WebDriverWait(self.driver, timeout).until(EC.invisibility_of_element_located(locator))
+
+    @allure.step("Проверить, появление элемента, поиск и возврат элемента")
+    def wait_and_find_element(self, locator, timeout=5):
+        WebDriverWait(self.driver, timeout).until(EC.visibility_of_element_located(locator))
+        return self.driver.find_element(*locator)
+
+    @allure.step("Ждем пока указанный текст перестанет отображаться в элементе")
+    def wait_until_text_is_not_visible(self, locator, text, timeout=10):
+        WebDriverWait(self.driver, timeout).until_not(EC.text_to_be_present_in_element(locator, text))
+
+    @allure.step("Ждать выполнения кастомного условия")
+    def wait_for_custom_condition(self, condition, timeout=10):
+        return WebDriverWait(self.driver, timeout).until(condition)
+
+    @allure.step("Найти все элементы по локатору")
+    def find_elements(self, locator):
+        return self.driver.find_elements(*locator)
+
+    @allure.step("Ждать пока элемент исчезнет из DOM")
+    def wait_for_element_to_disappear(self, locator, timeout=10):
+        return WebDriverWait(self.driver, timeout).until(EC.staleness_of(self.driver.find_element(*locator)))
+
+    # ========== ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ ИЗ AccountPage ==========
+
+    @allure.step("Ожидание присутствия элемента в DOM")
+    def wait_for_presence_of_element(self, locator, timeout=10):
+        """Ожидание присутствия элемента в DOM (не обязательно видимого)"""
+        return WebDriverWait(self.driver, timeout).until(EC.presence_of_element_located(locator))
+
+    @allure.step("Ожидание появления текста в элементе")
+    def wait_for_text_in_element(self, locator, text, timeout=10):
+        """Ожидание появления конкретного текста в элементе"""
+        return WebDriverWait(self.driver, timeout).until(EC.text_to_be_present_in_element(locator, text))
+
+    @allure.step("Ожидание загрузки страницы (по readyState)")
+    def wait_for_page_loaded(self, timeout=30):
+        """Ожидание полной загрузки страницы по document.readyState"""
+
+        def page_loaded(driver):
+            return driver.execute_script("return document.readyState") == "complete"
+
+        return WebDriverWait(self.driver, timeout).until(page_loaded)
+
+    @allure.step("Проверка что элемент выбран/активен")
+    def element_is_selected(self, locator, timeout=5):
+        """Проверка что элемент выбран (для чекбоксов, радиокнопок)"""
+        return WebDriverWait(self.driver, timeout).until(EC.element_to_be_selected(self.driver.find_element(*locator)))
+
+    @allure.step("Ожидание обновления элемента")
+    def wait_for_staleness_of(self, element, timeout=10):
+        """Ожидание пока элемент устареет (станет неактивным в DOM)"""
+        return WebDriverWait(self.driver, timeout).until(EC.staleness_of(element))
+
+    @allure.step("Ожидание видимости всех элементов")
+    def wait_for_all_elements_visible(self, locator, timeout=10):
+        """Ожидание видимости всех элементов по локатору"""
+        return WebDriverWait(self.driver, timeout).until(EC.visibility_of_all_elements_located(locator))
+
+    @allure.step("Ожидание присутствия всех элементов")
+    def wait_for_all_elements_present(self, locator, timeout=10):
+        """Ожидание присутствия всех элементов по локатору в DOM"""
+        return WebDriverWait(self.driver, timeout).until(EC.presence_of_all_elements_located(locator))
+
+    @allure.step("Ожидание появления alert")
+    def wait_for_alert(self, timeout=10):
+        """Ожидание появления alert окна"""
+        return WebDriverWait(self.driver, timeout).until(EC.alert_is_present())
 
     # ========== ДЕЙСТВИЯ ==========
 
@@ -114,27 +187,22 @@ class BasePage:
     def get_current_url(self):
         return self.driver.current_url
 
-    @allure.step("Проверить, что элемент не виден")
-    def element_is_not_visible(self, locator, timeout=10):
-        return WebDriverWait(self.driver, timeout).until(EC.invisibility_of_element_located(locator))
+    @allure.step("Получить значение атрибута элемента")
+    def get_element_attribute(self, locator, attribute):
+        """Получить значение атрибута элемента"""
+        element = self.wait_for_element(locator)
+        return element.get_attribute(attribute)
 
-    @allure.step("Проверить, появление элемента, поиск и возврат элемента")
-    def wait_and_find_element(self, locator, timeout=5):
-        WebDriverWait(self.driver, timeout).until(EC.visibility_of_element_located(locator))
-        return self.driver.find_element(*locator)
+    @allure.step("Выполнить JavaScript код")
+    def execute_script(self, script, *args):
+        """Выполнить JavaScript код"""
+        return self.driver.execute_script(script, *args)
 
-    @allure.step("Ждем пока указанный текст перестанет отображаться в элементе")
-    def wait_until_text_is_not_visible(self, locator, text, timeout=10):
-        WebDriverWait(self.driver, timeout).until_not(EC.text_to_be_present_in_element(locator, text))
-
-    @allure.step("Ждать выполнения кастомного условия")
-    def wait_for_custom_condition(self, condition, timeout=10):
-        return WebDriverWait(self.driver, timeout).until(condition)
-
-    @allure.step("Найти все элементы по локатору")
-    def find_elements(self, locator):
-        return self.driver.find_elements(*locator)
-
-    @allure.step("Ждать пока элемент исчезнет из DOM")
-    def wait_for_element_to_disappear(self, locator, timeout=10):
-        return WebDriverWait(self.driver, timeout).until(EC.staleness_of(self.driver.find_element(*locator)))
+    @allure.step("Сделать скриншот")
+    def take_screenshot(self, screenshot_name):
+        """Сделать скриншот и прикрепить к allure отчету"""
+        allure.attach(
+            self.driver.get_screenshot_as_png(),
+            name=screenshot_name,
+            attachment_type=allure.attachment_type.PNG
+        )

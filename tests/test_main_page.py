@@ -1,6 +1,5 @@
 import allure
 import logging
-from data import TextDate
 from pages.main_page import MainPage
 from locators.main_page_locators import MainPageLocators
 from urls import BASE_URL

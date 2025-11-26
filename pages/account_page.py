@@ -22,11 +22,7 @@ class AccountPage(BasePage):
         except Exception as e:
             logger.error(f"Страница аккаунта не загрузилась: {e}")
             logger.debug(f"Текущий URL: {self.driver.current_url}")
-            allure.attach(
-                self.driver.get_screenshot_as_png(),
-                name="account_page_not_loaded",
-                attachment_type=allure.attachment_type.PNG
-            )
+            self.take_screenshot("account_page_not_loaded")
             raise
 
     # ========== ДЕЙСТВИЯ ==========
@@ -75,7 +71,6 @@ class AccountPage(BasePage):
         """Проверка что мы на странице истории заказов"""
         try:
             current_url = self.get_current_url()
-            # ЗАМЕНИЛИ TextDate.TEXT_ORDER_HISTORY на строку
             return "/order-history" in current_url or "history" in current_url.lower()
         except Exception as e:
             logger.error(f"Ошибка при проверке страницы истории заказов: {e}")
@@ -93,12 +88,36 @@ class AccountPage(BasePage):
         """Проверка что выход из аккаунта выполнен"""
         try:
             current_url = self.get_current_url()
-            # ЗАМЕНИЛИ TextDate.TEXT_LOGIN на строку
             return "/login" in current_url or "auth" in current_url.lower()
         except Exception as e:
             logger.error(f"Ошибка при проверке выхода из аккаунта: {e}")
             return False
 
-    @allure.step("Получить текущий URL")
-    def get_current_url(self):
-        return self.driver.current_url
+    # ========== ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ АККАУНТА ==========
+
+    @allure.step("Перейти в профиль")
+    def go_to_profile(self):
+        """Переход в раздел профиля"""
+        element = self.element_is_clickable(AccountPageLocators.PROFILE)
+        self.click_js(element)
+        self.wait_for_element(AccountPageLocators.PROFILE_CONTENT, timeout=5)
+
+    @allure.step("Проверить активна ли вкладка профиля")
+    def is_profile_tab_active(self):
+        """Проверка что вкладка профиля активна"""
+        try:
+            element = self.wait_for_element(AccountPageLocators.PROFILE)
+            return "active" in element.get_attribute("class").lower()
+        except Exception as e:
+            logger.error(f"Ошибка при проверке активности вкладки профиля: {e}")
+            return False
+
+    @allure.step("Получить имя пользователя в аккаунте")
+    def get_username(self):
+        """Получение имени пользователя из аккаунта"""
+        try:
+            element = self.wait_for_element(AccountPageLocators.USERNAME)
+            return element.text.strip()
+        except Exception as e:
+            logger.error(f"Не удалось получить имя пользователя: {e}")
+            return ""

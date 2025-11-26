@@ -4,8 +4,6 @@ from pages.main_page import MainPage
 from pages.order_feed_page import OrderFeedPage
 from locators.order_feed_page_locators import OrderFeedPageLocators
 from locators.main_page_locators import MainPageLocators
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.by import By
 
 logger = logging.getLogger(__name__)
 
@@ -168,91 +166,28 @@ class TestOrderFeed:
         main_page = MainPage(driver)
         order_page = OrderFeedPage(driver)
 
-        # Переходим в ленту заказов чтобы увидеть начальное состояние
-        main_page.click_order_feed()
-        order_page.wait_for_element(OrderFeedPageLocators.ORDER_FEED_SECTION)
-
-        # Ждем загрузки раздела "В работе"
-        order_page.wait_for_element(OrderFeedPageLocators.ORDERS_AT_WORK, timeout=10)
-
-        # ДИАГНОСТИКА: смотрим как выглядят существующие заказы в разделе "В работе"
-        logger.info("=== ДИАГНОСТИКА ФОРМАТА НОМЕРОВ ЗАКАЗОВ ===")
-        try:
-            # Ищем все заказы в разделе "В работе"
-            all_orders = order_page.find_elements((By.XPATH, "//ul[contains(@class, 'OrderFeed_orderListReady')]/li"))
-            logger.info(f"Найдено заказов в разделе 'В работе': {len(all_orders)}")
-
-            for i, order_elem in enumerate(all_orders):
-                order_text = order_elem.text.strip()
-                logger.info(f"Заказ {i}: '{order_text}'")
-                logger.info(f"HTML заказа {i}: {order_elem.get_attribute('outerHTML')}")
-
-        except Exception as e:
-            logger.warning(f"Не удалось получить заказы для диагностики: {e}")
-
         # Создаем заказ
         main_page.click_constructor()
         main_page.add_ingredients_to_order()
         main_page.make_order()
 
-        # Ждем обработки заказа и получаем номер
-        new_order_number = order_page.wait_for_order_processing()
-        logger.info(f"Создан заказ с номером: {new_order_number}")
-
-        # ДИАГНОСТИКА: смотрим как номер отображается в модальном окне
-        try:
-            order_number_element = order_page.wait_for_element(OrderFeedPageLocators.MODAL_ORDER_NUMBER)
-            modal_order_text = order_number_element.text.strip()
-            logger.info(f"Номер заказа в модальном окне: '{modal_order_text}'")
-        except Exception as e:
-            logger.warning(f"Не удалось получить номер из модального окна: {e}")
+        # Получаем номер заказа
+        order_number = order_page.wait_for_order_processing()
+        logger.info(f"Создан заказ с номером: {order_number}")
 
         order_page.close_modal_window()
 
-        # Возвращаемся в ленту заказов
-        main_page.click_order_feed()
-        order_page.wait_for_element(OrderFeedPageLocators.ORDER_FEED_SECTION)
+        with allure.step("Идем на страницу заказов и проверяем заказ в разделе 'В работе'"):
+            # Переходим в ленту заказов
+            main_page.click_order_feed()
+            order_page.wait_for_element(OrderFeedPageLocators.ORDER_FEED_SECTION)
 
-        # Ждем загрузки раздела "В работе" после возврата
-        order_page.wait_for_element(OrderFeedPageLocators.ORDERS_AT_WORK, timeout=10)
+            # Используем динамический локатор
+            method, locator = OrderFeedPageLocators.ORDER_IN_PROGRESS_BY_NUMBER
+            dynamic_locator = (method, locator.format(order_number))
 
-        # Пробуем разные форматы номера заказа
-        possible_formats = [
-            new_order_number,  # "12345"
-            f"#{new_order_number}",  # "#12345"
-            f"# {new_order_number}",  # "# 12345"
-            f"00{new_order_number}",  # "0012345" (если есть ведущие нули)
-        ]
+            # Проверяем что элемент найден
+            assert order_page.wait_for_element(dynamic_locator, timeout=30), \
+                f"Заказ {order_number} не найден в разделе 'В работе'"
 
-        found = False
-        for order_format in possible_formats:
-            try:
-                method, locator_template = OrderFeedPageLocators.ORDER_IN_PROGRESS_BY_NUMBER
-                dynamic_locator = (method, locator_template.format(order_format))
-
-                logger.info(f"Пробуем найти заказ в формате: '{order_format}'")
-                order_element = order_page.wait_for_element(dynamic_locator, timeout=5)
-
-                logger.info(f"Заказ найден в формате: '{order_format}'")
-                assert order_element.is_displayed()
-                found = True
-                break
-
-            except TimeoutException:
-                logger.info(f"Формат '{order_format}' не сработал")
-                continue
-
-        if not found:
-            # Если ни один формат не сработал, выводим полную диагностику
-            logger.error("Ни один формат номера заказа не сработал")
-
-            # Смотрим что сейчас в разделе "В работе"
-            try:
-                current_orders = order_page.find_elements(
-                    (By.XPATH, "//ul[contains(@class, 'OrderFeed_orderListReady')]/li"))
-                logger.info(f"Текущие заказы в разделе: {[order.text for order in current_orders]}")
-            except Exception as e:
-                logger.error(f"Ошибка при получении текущих заказов: {e}")
-
-            raise AssertionError(
-                f"Заказ {new_order_number} не найден в разделе 'В работе'. Испробованы форматы: {possible_formats}")
+            logger.info(f" Заказ {order_number} найден в разделе 'В работе'")
