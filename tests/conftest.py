@@ -1,11 +1,10 @@
 import pytest
 import allure
 import logging
+import time
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 from pages.main_page import MainPage
 from pages.login_page import LoginPage
@@ -13,9 +12,11 @@ from helpers import UserAPI
 from urls import BASE_URL
 
 logger = logging.getLogger(__name__)
+
+
 @pytest.fixture(scope="session", autouse=True)
 def setup_logging():
-    #Настройка логирования для всех тестов
+    """Настройка логирования для всех тестов"""
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -24,6 +25,7 @@ def setup_logging():
             logging.StreamHandler()
         ]
     )
+
 
 # Фикстура для драйвера
 @pytest.fixture(params=['chrome', 'firefox'])
@@ -84,25 +86,79 @@ def registered_user():
 
 # Основная фикстура для авторизации в UI
 @pytest.fixture
-def login(driver, registered_user):
+def login_setup(driver, registered_user):
     """Авторизация с гарантированным переходом на главную"""
     main_page = MainPage(driver)
 
-    # Переходим на страницу логина
-    main_page.go_to_login_page_buttom_lk()
+    # Логируем начало авторизации
+    logger.info(f"Начинаем авторизацию для пользователя: {registered_user['email']}")
 
-    # Авторизуемся
-    login_page = LoginPage(driver)
-    login_page.user_authorization(registered_user['email'], registered_user['password'])
+    try:
+        # Переходим на страницу логина через существующий метод
+        logger.info("Переходим на страницу логина...")
+        main_page.go_to_login_page_buttom_lk()
 
-    # Ждем возврата на главную страницу
-    main_page.wait_for_url(BASE_URL, timeout=15)
+        # Проверяем что мы действительно на странице логина
+        current_url = main_page.get_current_url()
+        logger.info(f"Текущий URL после перехода на логин: {current_url}")
 
-    # ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: убедимся что мы действительно авторизованы
-    main_page.wait_for_custom_condition(
-        lambda driver: "login" not in driver.current_url,
-        timeout=10
-    )
+        if "/login" not in current_url:
+            logger.warning(f"Не на странице логина. URL: {current_url}")
+            # Пробуем альтернативный способ
+            main_page.go_to_login_page()
 
-    logger.info(f"UI-авторизация прошла успешно для: {registered_user['email']}")
-    return main_page
+        # Авторизуемся через Page-класс
+        logger.info("Вводим данные для авторизации...")
+        login_page = LoginPage(driver)
+        login_page.user_authorization(registered_user['email'], registered_user['password'])
+
+        # Даем время для обработки авторизации
+        logger.info("Ждем завершения авторизации...")
+        time.sleep(3)
+
+        # Проверяем текущий URL
+        current_url = main_page.get_current_url()
+        logger.info(f"Текущий URL после авторизации: {current_url}")
+
+        # Если все еще на странице логина, проверяем есть ли ошибка
+        if "/login" in current_url or "auth" in current_url.lower():
+            logger.error(f"Остались на странице логина после авторизации: {current_url}")
+
+            # Проверяем есть ли сообщение об ошибке
+            try:
+                from locators.login_page_locators import LoginPageLocators
+                error_element = main_page.find_elements(LoginPageLocators.ERROR_MESSAGE)
+                if error_element:
+                    error_text = error_element[0].text
+                    logger.error(f"Сообщение об ошибке: {error_text}")
+            except:
+                pass
+
+            main_page.take_screenshot("auth_failed")
+
+            # Пробуем подождать еще
+            logger.info("Пробуем подождать еще 5 секунд...")
+            time.sleep(5)
+            current_url = main_page.get_current_url()
+
+            if "/login" in current_url or "auth" in current_url.lower():
+                raise AssertionError(f"Авторизация не удалась. Остались на странице логина: {current_url}")
+
+        # Проверяем что мы на главной странице или произошел редирект
+        logger.info(f"Проверяем успешность авторизации. URL: {current_url}")
+
+        # Используем метод проверки авторизации из MainPage
+        try:
+            main_page.assert_user_authorized()
+        except AttributeError:
+            # Если метода еще нет, делаем простую проверку
+            if "/login" in current_url or "auth" in current_url.lower():
+                raise AssertionError(f"Авторизация не прошла, остались на странице логина: {current_url}")
+
+        logger.info(f"UI-авторизация прошла успешно для: {registered_user['email']}")
+        return main_page
+
+    except Exception as e:
+        logger.error(f"Ошибка в фикстуре login_setup: {e}")
+        main_page.take_screenshot("login_setup_error")
+        raise

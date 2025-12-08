@@ -9,7 +9,8 @@ class AccountPageLocators:
     # Текст в личном кабинете: "В этом разделе вы можете изменить свои персональные данные"
     ACCOUNT_TEXT = (By.XPATH, '//p[contains(text(), "В этом разделе вы можете")]')
     LOGOUT_BUTTON = (By.XPATH, "//button[contains(@class, 'Account_button__14Yp3') and contains(text(), 'Выход')]")
-
+    PROFILE_CONTENT = (By.XPATH, "//div[contains(@class, 'profile')]")
+    USERNAME = (By.XPATH, "//input[@name='name']")
 class HistoryPageLocators:
     # Основной контейнер
     ORDER_CARD = (By.XPATH, '//*[contains(@class, "OrderHistory_listItem")]')
